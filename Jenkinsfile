@@ -44,6 +44,7 @@ pipeline {
         	steps {
 				withCredentials([file(credentialsId: 'settings', variable: 'settings')]){
 					sh "mvn -f pom.xml -s $settings test -Dkey=mymulesoft -Dhttp.port=8086"
+					publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'target/site/munit/coverage', reportFiles: 'summary.html', reportName: 'Munit coverage Report', reportTitles: ''])
 				}
         		   
         	      }    
