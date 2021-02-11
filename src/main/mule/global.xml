@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:ftp="http://www.mulesoft.org/schema/mule/ftp"
+	xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ftp http://www.mulesoft.org/schema/mule/ftp/current/mule-ftp.xsd 
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd">
+	<configuration doc:name="Configuration" doc:id="0e6fa563-93cf-4bb0-8601-218d6d0e3822" defaultErrorHandler-ref="apiops-generic-db-sapi-global-error-handler" />
+	<http:listener-config name="httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="${http.port}" />
+    </http:listener-config>
+    <jms:config name="JMS_Config" doc:name="JMS Config" doc:id="c046b35a-d4ac-4239-8ac8-3b1162db8d44" >
+		<jms:active-mq-connection username="${jms.userName}" password="${secure::jms.password}" >
+			<jms:factory-configuration brokerUrl="${jms.brokerUrl}" />
+		</jms:active-mq-connection>
+	</jms:config>
+	<ftp:config name="FTP_Config" doc:name="FTP Config" doc:id="acf644da-3171-4a8c-a165-80bc79caf315" >
+		<ftp:connection workingDir="${ftp.workingDir}" host="${ftp.host}" username="${ftp.userName}" password="${secure::ftp.password}" port="${ftp.port}"/>
+	</ftp:config>
+	<db:config name="databaseConfig" doc:name="Database Config" doc:id="0588f32a-241d-4fd6-951f-5c2f424a6fe1" >
+		<db:my-sql-connection host="${db.host}" port="${db.port}" user="${db.user}" password="${secure::db.password}" database="${db.database}" />
+	</db:config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="3a865e15-9157-446a-8d90-f516f0a74712" file="apiops-generic-db-sapi-dev.yaml" key="${key}" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="ee58a74a-20f6-4195-a5fc-56b8db1ea4d9" file="apiops-generic-db-sapi-dev.yaml" />
+	<error-handler name="apiops-generic-db-sapi-global-error-handler" doc:id="cb21ef72-43a2-4760-8210-34218a19b93b" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="c9013092-3e5c-4c63-a9fe-4464df54a9ef" type="DB:BAD_SQL_SYNTAX">
+			<set-variable value="404" doc:name="set httpstatus" doc:id="2b0b02f0-f435-4c1d-966f-abf9f1e6a65d" variableName="httpstatus"/>
+			<flow-ref doc:name="apiops-generic-db-sapi-global-flow" doc:id="589177ab-476e-4f00-a323-7e9f234f28af" name="apiops-generic-db-sapi-global-flow"/>
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="408a5c19-eb3a-435f-b7cc-9f470dc28600" type="ANY">
+			<set-variable value="500" doc:name="set httpstatus" doc:id="f0f639cc-ddf8-4d59-bdfd-50a141b65a09" variableName="httpstatus" />
+			<flow-ref doc:name="apiops-generic-db-sapi-global-flow" doc:id="7d3c4475-b0be-4ace-b425-3d70c972dd29" name="apiops-generic-db-sapi-global-flow" />
+		</on-error-propagate>
+	</error-handler>
+	<flow name="apiops-generic-db-sapi-global-flow" doc:id="2f3161ae-e643-41a3-94de-dc5973bf0f9c" >
+		<ee:transform doc:name="Transform Message" doc:id="1ba3432e-5ac3-4a54-88d0-795eb98404d8" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	code: vars.httpStatus,
+	message: error.errorType.identifier,
+	description: error.description,
+	dateTime: now() as String 
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
